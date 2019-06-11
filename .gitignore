@@ -18,3 +18,5 @@ sdist/
 
 .idea/
 /venv/
+
+/.vscode/
