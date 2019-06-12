@@ -2,6 +2,7 @@
 from flask import Flask, render_template, Response
 import numpy as np
 import cv2
+import base64
 from flask_socketio import SocketIO, emit, send
 from time import sleep
 from threading import Thread
@@ -13,21 +14,22 @@ SIO = SocketIO(APP)
 
 CAM = cv2.VideoCapture(0)
 
-class CountThread(Thread):
+class VideoStreamThread(Thread):
     """Stream data on thread"""
     def __init__(self):
-        self.delay = 1
-        super(CountThread, self).__init__()
+        self.delay = .06
+        super(VideoStreamThread, self).__init__()
 
     def get_data(self):
         """
         Get data and emit to socket
         """
-        count = 0
-        while count < 4:
-            SIO.emit('count', {'count': count}, namespace='/socket-test')
-            print('COUNT: ' + str(count))
-            count += 1
+        global CAM
+        while CAM.isOpened():
+            success, frame = CAM.read()
+            _, jpeg = cv2.imencode('.jpg', frame)
+            encoded_img = "data:image/jpg;base64," + str(base64.b64encode(jpeg.tobytes()).decode())
+            SIO.emit('video_frame', {'frame': encoded_img}, namespace='/socket-test')
             sleep(self.delay)
             
     def run(self):
@@ -60,7 +62,7 @@ def connect_socket():
 
     # Start thread
     if not THREAD.isAlive():
-        THREAD = CountThread()
+        THREAD = VideoStreamThread()
         THREAD.start()
 
 
